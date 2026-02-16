@@ -1,0 +1,102 @@
+version: '3.8' #tells what compose file format to use 
+
+#everything inside services is what forms one app 
+services:
+  #mysql stuff 
+  db:
+    image: mysql:8.0
+    container_name: mysql-db
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: rails_app_production
+    volumes:
+      # persistent volume for database data
+      - db_vol:/var/lib/mysql
+    networks:
+      - rail_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # first rails app 
+  app1:
+    build: .
+    container_name: railsapp1
+    environment:
+      DATABASE_HOST: db
+      DATABASE_USER: root
+      DATABASE_PASSWORD: password
+      RAILS_ENV: production
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE:-dummy_secret_key_base}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - rail_network
+    command: >
+      sh -c "bundle exec rake db:create db:migrate 2>/dev/null || true &&
+             rails server -b 0.0.0.0"
+
+  
+  app2:
+    build: .
+    container_name: railsapp2
+    environment:
+      DATABASE_HOST: db
+      DATABASE_USER: root
+      DATABASE_PASSWORD: password
+      RAILS_ENV: production
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE:-dummy_secret_key_base}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - rail_network
+    command: rails server -b 0.0.0.0
+
+
+  app3:
+    build: .
+    container_name: railsapp3
+    environment:
+      DATABASE_HOST: db
+      DATABASE_USER: root
+      DATABASE_PASSWORD: password
+      RAILS_ENV: production
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE:-dummy_secret_key_base}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - rail_network
+    command: rails server -b 0.0.0.0
+
+  # Nginx Reverse Proxy and Load Balancer
+  nginx:
+    image: nginx:alpine
+    container_name: nginx_proxy
+    ports:
+      - "80:80"
+    volumes:
+      # persistent volume for Nginx configuration
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - app1
+      - app2
+      - app3
+    networks:
+      - rail_network
+
+networks:
+  rail_network:
+    driver: bridge
+
+volumes:
+  # Persistent volumes
+  db_vol:
+    driver: local
+  nginx_logs:
+    driver: local
