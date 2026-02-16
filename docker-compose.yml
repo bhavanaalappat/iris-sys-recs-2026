@@ -36,9 +36,9 @@ services:
     networks:
       - rail_network
     command: >
-      sh -c "bundle exec rake db:create db:migrate 2>/dev/null || true &&
-             rails server -b 0.0.0.0"
-
+      sh -c "rm -f tmp/pids/server.pid &&
+        bundle exec rake db:create db:migrate 2>/dev/null || true &&
+        rails server -b 0.0.0.0"
   
   app2:
     build: .
@@ -54,7 +54,7 @@ services:
         condition: service_healthy
     networks:
       - rail_network
-    command: rails server -b 0.0.0.0
+    command: sh -c "rm -f tmp/pids/server.pid && rails server -b 0.0.0.0"
 
 
   app3:
@@ -71,7 +71,7 @@ services:
         condition: service_healthy
     networks:
       - rail_network
-    command: rails server -b 0.0.0.0
+    command: sh -c "rm -f tmp/pids/server.pid && rails server -b 0.0.0.0"
 
   # Nginx Reverse Proxy and Load Balancer
   nginx:
